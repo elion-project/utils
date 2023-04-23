@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.4](https://github.com/elion-project/utils/compare/v0.0.3...v0.0.4) (2023-04-23)
+
+
+### Bug Fixes
+
+* Add `warn` for `merge` updateStrategy in `constructor.ts` ([92e03bb](https://github.com/elion-project/utils/commit/92e03bb0a17ab1ea41ca04b5e42c2537c9379343))
+
 ### [0.0.3](https://github.com/elion-project/utils/compare/v0.0.2...v0.0.3) (2023-04-23)
 
 
