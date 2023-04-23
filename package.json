@@ -1,0 +1,63 @@
+{
+    "name": "@node-elion/utils",
+    "version": "0.0.1",
+    "description": "Super scalable enterprise Node.js server library",
+    "main": "./dist/esm/index.js",
+    "types": "./dist/types/index.d.ts",
+    "exports": {
+        "types": "./dist/types/index.d.ts",
+        "require": "./dist/cjs/index.js",
+        "import": "./dist/esm/index.js",
+        "default": "./dist/esm/index.js"
+    },
+    "scripts": {
+        "release": "npx standard-version",
+        "cli": "node ./lib/cli/index.js",
+        "prepublishOnly": "npm run build:clean",
+        "build": "npm run build:cjs && npm run build:esm && npm run build:types",
+        "build:clean": "node scripts/clean.cjs && npm run build",
+        "build:cjs": "tsc --project tsconfig.cjs.json",
+        "build:esm": "tsc --project tsconfig.esm.json",
+        "build:types": "tsc --project tsconfig.types.json"
+    },
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/elion-project/utils.git"
+    },
+    "author": "Yehor Brodskiy",
+    "license": "MIT",
+    "bin": {
+        "elion": "src/cli/index.js",
+        "eli": "src/cli/index.js"
+    },
+    "bugs": {
+        "url": "https://github.com/elion-project/utils/issues"
+    },
+    "homepage": "https://github.com/elion-project/utils#readme",
+    "keywords": [
+        "Elion",
+        "Eli",
+        "Builder",
+        "Webpack",
+        "bundler",
+        "esm",
+        "require",
+        "utilites"
+    ],
+    "files": [
+        "dist"
+    ],
+    "devDependencies": {
+        "@types/node": "^18.15.11",
+        "@typescript-eslint/eslint-plugin": "^5.57.1",
+        "@typescript-eslint/parser": "^5.57.1",
+        "eslint": "^8.37.0",
+        "eslint-config-airbnb-base": "^15.0.0",
+        "eslint-config-airbnb-typescript": "^17.0.0",
+        "eslint-config-prettier": "^8.8.0",
+        "eslint-plugin-import": "^2.27.5",
+        "eslint-plugin-jest": "^27.2.1",
+        "eslint-plugin-prettier": "^4.2.1",
+        "npm-check-updates": "^16.10.7"
+    }
+}
