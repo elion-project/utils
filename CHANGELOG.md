@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.3](https://github.com/elion-project/utils/compare/v0.0.2...v0.0.3) (2023-04-23)
+
+
+### Features
+
+* Removed useless files. Upgraded `ModelEvent` part ([3198ebe](https://github.com/elion-project/utils/commit/3198ebef4fdb1dd99036faa979625eb04a5b31a8))
+
 ### [0.0.2](https://github.com/elion-project/utils/compare/v0.0.1...v0.0.2) (2023-04-23)
 
 
