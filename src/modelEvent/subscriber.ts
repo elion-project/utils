@@ -1,15 +1,13 @@
+import merge from "lodash.merge";
 import {
     generateTrackIdentifier,
     getActionFromTrackIdentifier,
-    JSONLike,
     ModelEventAction,
     ModelId,
     ModelPrototype,
-    ModelPublishCreateEvent,
     ModelPublishEventLike,
     ModelPublishEventLikeWithHeader,
     ModelPublishUpdateEvent,
-    ModelSubscribeCreateEvent,
     ModelSubscribeDeleteEvent,
     ModelSubscribeEvent,
     ModelSubscribeEventBatchSize,
@@ -20,11 +18,8 @@ import {
     ModelSubscribeEventMetaField,
     ModelSubscribeEventQueWaitTime,
     ModelSubscribeMetaEvent,
-} from "../types";
-
-// TODO: add batch sen
-// TODO: add que aggregator
-// TODO: add simple fields
+    ModelSubscribeUpdateEvent,
+} from "./types";
 
 type IdList = ModelId[];
 
@@ -34,6 +29,7 @@ export type SubscribeConfig = {
     getAll: () => Promise<ModelPrototype[]>;
     getAllIds: () => Promise<IdList>;
     getById: (id: ModelId) => Promise<ModelPrototype>;
+    sanitizeModel: (body: ModelPrototype) => Promise<ModelPrototype>;
     track: (
         trackIdentifier: string,
         onTrackEvent: ModelEventSubscriber["onTrackEvent"]
@@ -69,7 +65,7 @@ export class ModelEventSubscriber {
 
     private keepAliveTimeout: NodeJS.Timeout | null = null;
 
-    private state: JSONLike[] = [];
+    private modelState = new Map<ModelId, ModelPrototype>();
 
     private trackIdentifiers: string[] = [];
 
@@ -102,7 +98,12 @@ export class ModelEventSubscriber {
             this.config.keepAlive.period
         );
 
-        this.state = await this.config.getAll();
+        const getAllResponse = await this.config.getAll();
+
+        getAllResponse.forEach((item) => {
+            const id = (item as any)[this.config.idParamName];
+            this.modelState.set(id, item);
+        });
 
         const metaFields = (
             await Promise.all(
@@ -118,7 +119,6 @@ export class ModelEventSubscriber {
             return acc;
         }, {} as ModelEventMeta);
         this.trackIdentifiers = [
-            this.generateTrackIdentifier("create"),
             this.generateTrackIdentifier("update"),
             this.generateTrackIdentifier("delete"),
         ];
@@ -128,16 +128,17 @@ export class ModelEventSubscriber {
 
         this.pushToSendQueue(
             ...[
-                ...this.state.map((item) => {
+                ...getAllResponse.map((item, index) => {
                     const id: ModelId = (item as any)[this.config.idParamName];
-                    const createEvent: ModelSubscribeCreateEvent = {
+                    const createEvent: ModelSubscribeUpdateEvent = {
                         modelName: this.config.trackModelName,
                         idParamName: this.config.idParamName,
-                        action: "create",
+                        action: "update",
                         data: {
                             id,
                             data: item,
-                            index: this.state.indexOf(item),
+                            index,
+                            updateStrategy: "replace",
                         },
                     };
                     return createEvent;
@@ -159,7 +160,7 @@ export class ModelEventSubscriber {
     }
 
     private getStateIdList(): IdList {
-        return this.state.map((item) => (item as any)[this.config.idParamName]);
+        return Array.from(this.modelState.keys());
     }
 
     private pushToQueue(...events: ModelPublishEventLikeWithHeader[]): void {
@@ -230,7 +231,10 @@ export class ModelEventSubscriber {
                 return acc;
             }, []) as {
                 id: ModelId;
-                actions: { name: string; index: number }[];
+                actions: {
+                    name: string;
+                    index: number;
+                }[];
             }[]
         )
             .filter((item) => item.actions.length > 1)
@@ -240,84 +244,71 @@ export class ModelEventSubscriber {
                         .map((action) => action.name)
                         .every((name) => name === "update")
                 ) {
-                    // TODO: Keep for now. Should support updateStrategy
                     item.actions.slice(0, -1).forEach((action) => {
                         this.queue.splice(action.index, 1);
                     });
+                    const updateItem = item.actions.slice(-1)[0];
+                    if (
+                        (
+                            this.queue[updateItem.index]
+                                .body as ModelPublishUpdateEvent
+                        ).updateStrategy === "merge"
+                    ) {
+                        //     could cause issues if previous update was merge also
+                        //     remove data and change updateStrategy to replace for right now
+                        (
+                            this.queue[updateItem.index]
+                                .body as ModelPublishUpdateEvent
+                        ).data = undefined;
+                        (
+                            this.queue[updateItem.index]
+                                .body as ModelPublishUpdateEvent
+                        ).updateStrategy = "replace";
+                    }
                 } else if (
                     item.actions.some((action) => action.name === "delete")
                 ) {
-                    const currentDeleteIndex = item.actions.findIndex(
-                        (action) => action.name === "delete"
-                    );
+                    const currentDeleteIndex = item.actions
+                        .reverse()
+                        .findIndex((action) => action.name === "delete");
                     if (
-                        item.actions.some((action) => action.name === "create")
-                    ) {
-                        const currentCreateIndex = item.actions.findIndex(
-                            (action) => action.name === "create"
-                        );
-                        if (currentCreateIndex < currentDeleteIndex) {
-                            this.queue.splice(
-                                item.actions[currentCreateIndex].index,
-                                1
-                            );
-                            this.queue.splice(
-                                item.actions[currentDeleteIndex].index,
-                                1
-                            );
-                        } else {
-                            //    TODO: Should be converted to update
-                            this.queue.splice(
-                                item.actions[currentDeleteIndex].index,
-                                1
-                            );
-                        }
-                    } else if (
                         item.actions.some((action) => action.name === "update")
                     ) {
-                        const currentUpdateIndex = item.actions.findIndex(
-                            (action) => action.name === "update"
-                        );
+                        const currentUpdateIndex = item.actions
+                            .reverse()
+                            .findIndex((action) => action.name === "update");
                         if (currentUpdateIndex < currentDeleteIndex) {
-                            this.queue.splice(
-                                item.actions[currentUpdateIndex].index,
-                                1
-                            );
+                            // since delete is last, we can just remove all besides delete
+                            item.actions.splice(currentDeleteIndex, 1);
+                            item.actions.forEach((action) => {
+                                this.queue.splice(action.index, 1);
+                            });
                         } else {
-                            //     Actually, this situation should not happen
-                            //     Anyway, remove update action, since delete is more important
-                            this.queue.splice(
-                                item.actions[currentUpdateIndex].index,
+                            // since update is last, we can just remove all besides update
+                            const updateItem = item.actions.splice(
+                                currentUpdateIndex,
                                 1
                             );
-                        }
-                    }
-                } else if (
-                    item.actions.some((action) => action.name === "create")
-                ) {
-                    const currentCreateIndex = item.actions.findIndex(
-                        (action) => action.name === "create"
-                    );
-                    if (
-                        item.actions.some((action) => action.name === "update")
-                    ) {
-                        const currentUpdateIndex = item.actions.findIndex(
-                            (action) => action.name === "update"
-                        );
-                        if (currentUpdateIndex < currentCreateIndex) {
-                            //    Actually, this situation should not happen
-                            //    Anyway, remove create action, since update is more important
-                            this.queue.splice(
-                                item.actions[currentCreateIndex].index,
-                                1
-                            );
-                        } else {
-                            // TODO: should use create, but data from update
-                            // keep update action for now
-                            this.queue.splice(
-                                item.actions[currentCreateIndex].index,
-                                1
-                            );
+                            item.actions.forEach((action) => {
+                                this.queue.splice(action.index, 1);
+                            });
+                            if (
+                                (
+                                    this.queue[updateItem[0].index]
+                                        .body as ModelPublishUpdateEvent
+                                ).updateStrategy === "merge"
+                            ) {
+                                //     could cause issues if previous update was merge also
+                                //     remove data and change updateStrategy to replace for right now
+                                (
+                                    this.queue[updateItem[0].index]
+                                        .body as ModelPublishUpdateEvent
+                                ).data = undefined;
+                                (
+                                    this.queue[updateItem[0].index]
+                                        .body as ModelPublishUpdateEvent
+                                ).updateStrategy = "replace";
+                            }
                         }
                     }
                 }
@@ -431,12 +422,6 @@ export class ModelEventSubscriber {
         const action = getActionFromTrackIdentifier(event.header);
         const id: ModelId = (event.body as any)[this.config.idParamName];
         switch (action) {
-            case "create":
-                return this.onCreate(
-                    id,
-                    event.body as ModelPublishCreateEvent,
-                    newIdList
-                );
             case "update":
                 return this.onUpdate(
                     id,
@@ -444,7 +429,7 @@ export class ModelEventSubscriber {
                     newIdList
                 );
             case "delete":
-                return this.onDelete(id);
+                return { shouldUpdateIndexes: true };
             default:
                 throw new Error(`Unknown action "${action}"`);
         }
@@ -467,23 +452,16 @@ export class ModelEventSubscriber {
         }
     }
 
-    private async findIndexDiff(
-        existedNewIdList?: ModelId[],
-        ignoreId?: ModelId
-    ): Promise<void> {
+    private async findIndexDiff(existedNewIdList?: ModelId[]): Promise<void> {
         const currentIdList = this.getStateIdList();
         const newIdList = existedNewIdList || (await this.config.getAllIds());
-        const ignoreIdCheck = (id: ModelId) =>
-            ignoreId ? id !== ignoreId : true;
 
         this.pushToSendQueue(
             ...[
                 ...currentIdList
                     .filter((id) => !newIdList.includes(id))
-                    .filter(ignoreIdCheck)
                     .map((id) => {
-                        const index = currentIdList.indexOf(id);
-                        this.state.splice(index, 1);
+                        this.modelState.delete(id);
                         const deleteEvent: ModelSubscribeDeleteEvent = {
                             modelName: this.config.trackModelName,
                             idParamName: this.config.idParamName,
@@ -495,16 +473,20 @@ export class ModelEventSubscriber {
                 ...(await Promise.all(
                     newIdList
                         .filter((id) => !currentIdList.includes(id))
-                        .filter(ignoreIdCheck)
                         .map(async (id) => {
                             const data = await this.config.getById(id);
-                            this.state.push(data);
+                            this.modelState.set(id, data);
                             const index = newIdList.indexOf(id);
-                            const createEvent: ModelSubscribeCreateEvent = {
+                            const createEvent: ModelSubscribeUpdateEvent = {
                                 modelName: this.config.trackModelName,
                                 idParamName: this.config.idParamName,
-                                action: "create",
-                                data: { id, data, index },
+                                action: "update",
+                                data: {
+                                    id,
+                                    data,
+                                    index,
+                                    updateStrategy: "replace",
+                                },
                             };
                             return createEvent;
                         })
@@ -513,105 +495,63 @@ export class ModelEventSubscriber {
         );
     }
 
-    private async onCreate(
-        id: ModelId,
-        body: ModelPublishCreateEvent,
-        existedNewIdList?: IdList
-    ): Promise<ModelSubscribeEventPerformerResponse> {
-        const idList = existedNewIdList || (await this.config.getAllIds());
-        const index = idList.indexOf(id);
-        if (index !== -1) {
-            const data = body.data || (await this.config.getById(id));
-            this.state.push(data);
-            this.pushToSendQueue({
-                modelName: this.config.trackModelName,
-                idParamName: this.config.idParamName,
-                action: "create",
-                data: { id, data, index },
-            });
-            return { shouldUpdateIndexes: true, newIdList: idList };
-        }
-        return { shouldUpdateIndexes: false, newIdList: idList };
-    }
-
     private async onUpdate(
         id: ModelId,
         body: ModelPublishUpdateEvent,
         existedNewIdList?: IdList
     ): Promise<ModelSubscribeEventPerformerResponse> {
-        const currentIdList = this.getStateIdList();
         const newIdList = existedNewIdList || (await this.config.getAllIds());
-
-        const indexInCurrent = currentIdList.indexOf(id);
+        const modelHasLocal = this.modelState.has(id);
         const indexInNew = newIdList.indexOf(id);
-        if (indexInCurrent !== -1) {
-            if (indexInNew === -1) {
-                // Can omit of doing that. Will be deleted by index check
-                this.state.splice(indexInCurrent, 1);
-                this.pushToSendQueue({
-                    modelName: this.config.trackModelName,
-                    idParamName: this.config.idParamName,
-                    action: "delete",
-                    data: { id },
-                });
-                return { shouldUpdateIndexes: true, newIdList };
+
+        const updateStrategy = body.updateStrategy || "replace";
+        const data: ModelPrototype =
+            (body.data as ModelPrototype) || (await this.config.getById(id));
+        const dataFromBody = !!(body.data as ModelPrototype);
+
+        if (indexInNew !== -1) {
+            if (updateStrategy === "replace") {
+                this.modelState.set(
+                    id,
+                    dataFromBody ? await this.config.sanitizeModel(data) : data
+                );
+            } else if (
+                updateStrategy === "merge" &&
+                body.data &&
+                modelHasLocal
+            ) {
+                this.modelState.set(
+                    id,
+                    await this.config.sanitizeModel(
+                        merge(this.modelState.get(id), data)
+                    )
+                );
             }
-            const data = body.data || (await this.config.getById(id));
-            this.state[indexInCurrent] = data;
             this.pushToSendQueue({
                 modelName: this.config.trackModelName,
                 idParamName: this.config.idParamName,
                 action: "update",
                 data: {
                     id,
-                    data,
-                    updateStrategy: body.updateStrategy,
+                    data: this.modelState.get(id),
                     index: indexInNew,
+                    updateStrategy: "replace",
                 },
             });
-            return { shouldUpdateIndexes: false, newIdList };
+            return { shouldUpdateIndexes: true, newIdList };
         }
-        if (indexInNew !== -1) {
-            // could be regenerated trough index check
-            const data = body.data || (await this.config.getById(id));
-            this.state.push(data);
-            this.pushToSendQueue({
-                modelName: this.config.trackModelName,
-                idParamName: this.config.idParamName,
-                action: "create",
-                data: { id, data, index: indexInNew },
-            });
+        if (modelHasLocal) {
             return { shouldUpdateIndexes: true, newIdList };
         }
         return { shouldUpdateIndexes: false, newIdList };
     }
 
-    private async onDelete(
-        id: ModelId
-    ): Promise<ModelSubscribeEventPerformerResponse> {
-        const currentIdList = this.getStateIdList();
-
-        if (currentIdList.includes(id)) {
-            const index = currentIdList.indexOf(id);
-            this.state.splice(index, 1);
-            this.pushToSendQueue({
-                modelName: this.config.trackModelName,
-                idParamName: this.config.idParamName,
-                action: "delete",
-                data: { id },
-            });
-            return { shouldUpdateIndexes: true };
-        }
-        return { shouldUpdateIndexes: false };
-    }
-
     public async regenerateState(): Promise<void> {
         await this.unsubscribe();
         const currentIdList = this.getStateIdList();
+        this.modelState.clear();
         this.pushToSendQueue(
             ...currentIdList.map((id) => {
-                const index = currentIdList.indexOf(id);
-                this.state.splice(index, 1);
                 const deleteEvent: ModelSubscribeDeleteEvent = {
                     modelName: this.config.trackModelName,
                     idParamName: this.config.idParamName,

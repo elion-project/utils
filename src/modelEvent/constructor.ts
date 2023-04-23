@@ -1,6 +1,4 @@
 import {
-    JSONLike,
-    ModelSubscribeCreateEvent,
     ModelSubscribeDeleteEvent,
     ModelSubscribeEvent,
     ModelEventMeta,
@@ -8,7 +6,8 @@ import {
     ModelSubscribeUpdateEvent,
     ModelSubscribeEventLike,
     ModelId,
-} from "../types";
+} from "./types";
+import { JSONLike } from "../types";
 
 export type ModelEventConstructorConfig = {
     onUpdate?(state: {
@@ -24,11 +23,9 @@ export class ModelEventConstructor {
 
     private modelState: Map<ModelId, JSONLike> = new Map();
 
+    private metadataState: Map<string, JSONLike> = new Map();
+
     private modelIndexMap: ModelId[] = [];
-
-    private metaState: Map<string, JSONLike> = new Map();
-
-    private metadataState: ModelEventMeta = {};
 
     constructor(config: ModelEventConstructorConfig) {
         this.config = {
@@ -43,12 +40,6 @@ export class ModelEventConstructor {
         let updateModels = false;
         events.forEach((event) => {
             switch (event.action) {
-                case "create":
-                    this.onCreate.bind(this)(
-                        event as ModelSubscribeCreateEvent
-                    );
-                    updateModels = true;
-                    break;
                 case "update":
                     this.onUpdate.bind(this)(
                         event as ModelSubscribeUpdateEvent
@@ -84,50 +75,53 @@ export class ModelEventConstructor {
         }
     }
 
-    private onCreate(event: ModelSubscribeCreateEvent): void {
-        const insertIndex = event.data.index;
-        const { data, id } = event.data;
-        this.modelState.set(id, data);
-        this.modelIndexMap.splice(insertIndex, 0, id);
+    private cleanModelFromIndexList(
+        id: ModelId,
+        cleanMap: boolean = false
+    ): boolean {
+        const oldIndexes: number[] = this.modelIndexMap
+            .map((item, index) => [item, index])
+            .filter(([itemId]) => itemId === id)
+            .map(([, index]: [ModelId, number]) => index);
+        if (oldIndexes.length) {
+            if (cleanMap) {
+                this.modelState.delete(id);
+            }
+            oldIndexes.forEach((index) => {
+                this.modelIndexMap.splice(index, 1);
+            });
+            return true;
+        }
+        return false;
     }
 
     private onUpdate(event: ModelSubscribeUpdateEvent): void {
         const { data, index, id } = event.data;
         this.modelState.set(id, data);
-        const oldIndex = this.modelIndexMap.findIndex(
-            (itemId) => itemId === id
-        );
-        if (oldIndex !== -1) {
-            this.modelIndexMap.splice(oldIndex, 1);
-            this.modelIndexMap.splice(index, 0, id);
-        } else {
-            this.modelIndexMap.splice(index, 0, id);
-        }
+        this.cleanModelFromIndexList(id);
+        this.modelIndexMap.splice(index, 0, id);
     }
 
     private onDelete(event: ModelSubscribeDeleteEvent): void {
         const { id } = event.data;
         this.modelState.delete(id);
-        const index = this.modelIndexMap.findIndex((itemId) => itemId === id);
-        if (index !== -1) {
-            this.modelIndexMap.splice(index, 1);
-        }
+        this.cleanModelFromIndexList(id, true);
     }
 
     private onMeta(event: ModelSubscribeMetaEvent): void {
         const { data, id } = event.data;
-        this.metadataState[id] = data;
+        this.metadataState.set(id, data);
     }
 
     private updateInnerState(): void {
         this.config.onUpdate({
             models: this.modelIndexMap.map((id) => this.modelState.get(id)),
-            metadataState: this.metadataState,
+            metadataState: Object.fromEntries(this.metadataState),
         });
     }
 
     private updateMetadataState(): void {
-        this.config.onMetaUpdate(this.metadataState);
+        this.config.onMetaUpdate(Object.fromEntries(this.metadataState));
     }
 
     private updateModelsState(): void {

@@ -1,2 +1,2 @@
+export * as ModelEvent from "./modelEvent";
 export * from "./types";
-export * from "./modelEvent";
