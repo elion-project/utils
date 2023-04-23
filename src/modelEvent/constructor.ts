@@ -96,10 +96,16 @@ export class ModelEventConstructor {
     }
 
     private onUpdate(event: ModelSubscribeUpdateEvent): void {
-        const { data, index, id } = event.data;
-        this.modelState.set(id, data);
-        this.cleanModelFromIndexList(id);
-        this.modelIndexMap.splice(index, 0, id);
+        const { data, index, id, updateStrategy } = event.data;
+        if (updateStrategy === "replace") {
+            this.modelState.set(id, data);
+            this.cleanModelFromIndexList(id);
+            this.modelIndexMap.splice(index, 0, id);
+        } else {
+            console.warn(
+                `method ${updateStrategy} is not implemented yet! Skipping...`
+            );
+        }
     }
 
     private onDelete(event: ModelSubscribeDeleteEvent): void {
