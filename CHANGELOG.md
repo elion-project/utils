@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.2](https://github.com/elion-project/utils/compare/v0.0.1...v0.0.2) (2023-04-23)
+
+
+### Bug Fixes
+
+* Add badges ([2bbe4a1](https://github.com/elion-project/utils/commit/2bbe4a18909813849c60c4e2b060d20a624ce4a8))
+
 ### 0.0.1 (2023-04-23)
 
 
