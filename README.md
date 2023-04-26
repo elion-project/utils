@@ -8,7 +8,7 @@
 
 this package is part of the [Elion project](https://github.com/elion-project).
 
-This package contains some useful utils (like `subscribe` or `logger`) for projects, which are based on `@node-elion` packages.
+This package contains some useful utils (like `ModelEvent` or `Logger`) for projects, which are based on `@node-elion` packages.
 ## Installation
 
 Install `@node-elion/utils` with npm
