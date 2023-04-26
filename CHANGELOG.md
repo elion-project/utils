@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.5](https://github.com/elion-project/utils/compare/v0.0.4...v0.0.5) (2023-04-26)
+
+
+### Features
+
+* Update `Logger` implementation ([3bf6a65](https://github.com/elion-project/utils/commit/3bf6a654d85630ea7d5502ac4177cbe0fb5517c3))
+
+
+### Bug Fixes
+
+* Update `README.md` ([7887898](https://github.com/elion-project/utils/commit/7887898b4f22a5b0ae789ad0fd88bbb78b0a2d72))
+
 ### [0.0.4](https://github.com/elion-project/utils/compare/v0.0.3...v0.0.4) (2023-04-23)
 
 
