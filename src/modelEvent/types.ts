@@ -15,6 +15,9 @@ export const generateTrackIdentifier = (
 
 export const getActionFromTrackIdentifier = (trackIdentifier: string): string =>
     trackIdentifier.split(":")[1];
+export const getModelNameFromTrackIdentifier = (
+    trackIdentifier: string
+): string => trackIdentifier.split(":")[0];
 
 export type ModelId = string | number;
 

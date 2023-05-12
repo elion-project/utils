@@ -349,6 +349,9 @@ export class ModelEventSubscriber {
             let shouldUpdateIndexes = false;
             let newIdList: IdList = null;
             await this.optimizeQueue();
+            const triggers = this.queue.map((event) =>
+                getActionFromTrackIdentifier(event.header)
+            );
             for (let i = 0; i < this.queue.length; i++) {
                 const eventResponse = await this.performQue(
                     this.queue[i],
@@ -365,9 +368,6 @@ export class ModelEventSubscriber {
             if (shouldUpdateIndexes) {
                 await this.findIndexDiff();
             }
-            const triggers = this.queue.map((event) =>
-                getActionFromTrackIdentifier(event.header)
-            );
             this.pushToSendQueue(
                 ...(
                     await Promise.all(
