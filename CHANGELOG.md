@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.1](https://github.com/elion-project/utils/compare/v0.1.0...v0.1.1) (2023-05-29)
+
+
+### Bug Fixes
+
+* fix reverse bug ([33d544b](https://github.com/elion-project/utils/commit/33d544bf36ad0129d0b49e5d10556d005784fbd4))
+
 ## [0.1.0](https://github.com/elion-project/utils/compare/v0.0.6...v0.1.0) (2023-05-29)
 
 
