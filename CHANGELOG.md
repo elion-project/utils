@@ -2,6 +2,22 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.1.0](https://github.com/elion-project/utils/compare/v0.0.6...v0.1.0) (2023-05-29)
+
+
+### ⚠ BREAKING CHANGES
+
+* Add support of custom events
+
+### Features
+
+* Add support of custom events ([c1fee1f](https://github.com/elion-project/utils/commit/c1fee1faf5fed13ae0fdb38eccbcbbf92f8a8caa))
+
+
+### Bug Fixes
+
+* Upgrade dependencies. ([34e661c](https://github.com/elion-project/utils/commit/34e661c1180d1daa92a9d05daa1df5765bd3e37d))
+
 ### [0.0.6](https://github.com/elion-project/utils/compare/v0.0.5...v0.0.6) (2023-05-12)
 
 
