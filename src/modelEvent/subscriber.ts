@@ -2,9 +2,12 @@ import merge from "lodash.merge";
 import {
     generateTrackIdentifier,
     getActionFromTrackIdentifier,
+    IdList,
     ModelEventAction,
+    ModelEventMeta,
     ModelId,
     ModelPrototype,
+    ModelPublishCustomEvent,
     ModelPublishEventLike,
     ModelPublishEventLikeWithHeader,
     ModelPublishUpdateEvent,
@@ -14,19 +17,45 @@ import {
     ModelSubscribeEventKeepAliveCheckPendingPeriod,
     ModelSubscribeEventKeepAlivePeriod,
     ModelSubscribeEventLike,
-    ModelEventMeta,
     ModelSubscribeEventMetaField,
     ModelSubscribeEventQueWaitTime,
     ModelSubscribeMetaEvent,
     ModelSubscribeUpdateEvent,
+    UpdateStrategy,
 } from "./types";
+import { JSONLike } from "../types";
 
-type IdList = ModelId[];
+export type CustomTriggerOnEmit = {
+    getAll: ModelEventSubscriber["config"]["getAll"];
+    getAllIds: ModelEventSubscriber["config"]["getAllIds"];
+    onUpdate: ModelEventSubscriber["onUpdate"];
+    modelState: Map<ModelId, ModelPrototype>;
+};
+
+export type OnEmitResponse = {
+    shouldUpdateIndexes: boolean;
+};
+
+export type CustomTrigger = {
+    name?: string;
+    allowOptimization: boolean;
+    on: (
+        params: CustomTriggerOnEmit,
+        data: JSONLike
+    ) => Promise<OnEmitResponse>;
+};
+
+export type CustomTriggers = {
+    [key: string]: CustomTrigger;
+};
 
 export type SubscribeConfig = {
     trackModelName: string;
     idParamName: string;
-    getAll: () => Promise<ModelPrototype[]>;
+    getAll?: () => Promise<ModelPrototype[]>;
+    modelRequest?: {
+        strategy?: "parallel" | "sequence";
+    };
     getAllIds: () => Promise<IdList>;
     getById: (id: ModelId) => Promise<ModelPrototype>;
     sanitizeModel: (body: ModelPrototype) => Promise<ModelPrototype>;
@@ -41,12 +70,22 @@ export type SubscribeConfig = {
     // @description period of time (in ms) between que checks. 100ms by default
     queWaitTime?: number | ModelSubscribeEventQueWaitTime;
     metaFields?: ModelSubscribeEventMetaField;
+    customTriggers?: CustomTriggers;
     keepAlive: {
         // @description period of time (in ms) between keepAlive requests. 5000ms by default
         period?: number | ModelSubscribeEventKeepAlivePeriod;
         pendingPeriod?: number | ModelSubscribeEventKeepAliveCheckPendingPeriod;
         onKeepAlive: () => Promise<boolean>;
     };
+};
+
+export type SimpleSubscribeConfig = {
+    trackName: string;
+    track: (
+        trackIdentifier: string,
+        onTrackEvent: ModelEventSubscriber["onTrackEvent"]
+    ) => void;
+    removeTrack: (trackIdentifier: string) => Promise<void>;
 };
 
 type ModelSubscribeEventPerformerResponse = {
@@ -69,13 +108,47 @@ export class ModelEventSubscriber {
 
     private trackIdentifiers: string[] = [];
 
+    static simpleSubscribe(
+        params: SimpleSubscribeConfig,
+        onEvent: (data: JSONLike) => void
+    ): { unsubscribe: () => void } {
+        params.track(params.trackName, async (header, body) => {
+            if (header === params.trackName) {
+                onEvent(body);
+            }
+        });
+        return {
+            unsubscribe: () => params.removeTrack(params.trackName),
+        };
+    }
+
     constructor(config: SubscribeConfig) {
+        const modelRequestStrategy =
+            config.modelRequest?.strategy ?? "parallel";
+
+        const getAllDefault = async () => {
+            const ids = await this.config.getAllIds();
+            if (modelRequestStrategy === "parallel") {
+                return Promise.all(ids.map((id) => this.config.getById(id)));
+            }
+
+            const result: ModelPrototype[] = [];
+            for (let i = 0; i < ids.length; i++) {
+                result.push(await this.config.getById(ids[i]));
+            }
+            return result;
+        };
         this.config = {
             ...config,
+            getAll: config.getAll ?? getAllDefault,
+            modelRequest: {
+                strategy: modelRequestStrategy,
+            },
             batchSize: config.batchSize || ModelSubscribeEventBatchSize.auto,
             queWaitTime:
                 config.queWaitTime || ModelSubscribeEventQueWaitTime.default,
             metaFields: config.metaFields || {},
+            customTriggers: config.customTriggers || {},
             keepAlive: {
                 period:
                     config.keepAlive.period ||
@@ -110,7 +183,7 @@ export class ModelEventSubscriber {
                 Object.entries(this.config.metaFields).map(
                     async ([key, item]) => [
                         key as string,
-                        await item.onChange(),
+                        await item.onModelChange(),
                     ]
                 )
             )
@@ -119,8 +192,11 @@ export class ModelEventSubscriber {
             return acc;
         }, {} as ModelEventMeta);
         this.trackIdentifiers = [
-            this.generateTrackIdentifier("update"),
-            this.generateTrackIdentifier("delete"),
+            this.generateTrackIdentifier(ModelEventAction.UPDATE),
+            this.generateTrackIdentifier(ModelEventAction.DELETE),
+            ...Object.keys(this.config.customTriggers).map((key) =>
+                this.generateTrackIdentifier(key)
+            ),
         ];
         this.trackIdentifiers.forEach((trackIdentifier) =>
             this.config.track(trackIdentifier, this.onTrackEvent.bind(this))
@@ -133,12 +209,12 @@ export class ModelEventSubscriber {
                     const createEvent: ModelSubscribeUpdateEvent = {
                         modelName: this.config.trackModelName,
                         idParamName: this.config.idParamName,
-                        action: "update",
+                        action: ModelEventAction.UPDATE,
                         data: {
                             id,
                             data: item,
                             index,
-                            updateStrategy: "replace",
+                            updateStrategy: UpdateStrategy.REPLACE,
                         },
                     };
                     return createEvent;
@@ -147,7 +223,7 @@ export class ModelEventSubscriber {
                     const event: ModelSubscribeMetaEvent = {
                         modelName: this.config.trackModelName,
                         idParamName: this.config.idParamName,
-                        action: "meta",
+                        action: ModelEventAction.META,
                         data: {
                             id: key,
                             data: value,
@@ -240,9 +316,11 @@ export class ModelEventSubscriber {
             .filter((item) => item.actions.length > 1)
             .forEach((item) => {
                 if (
-                    item.actions
-                        .map((action) => action.name)
-                        .every((name) => name === "update")
+                    Array.from(
+                        new Set(item.actions.map((action) => action.name))
+                    ).length === 1 &&
+                    this.config.customTriggers[item.actions[0].name]
+                        .allowOptimization
                 ) {
                     item.actions.slice(0, -1).forEach((action) => {
                         this.queue.splice(action.index, 1);
@@ -252,10 +330,8 @@ export class ModelEventSubscriber {
                         (
                             this.queue[updateItem.index]
                                 .body as ModelPublishUpdateEvent
-                        ).updateStrategy === "merge"
+                        ).updateStrategy === UpdateStrategy.MERGE
                     ) {
-                        //     could cause issues if previous update was merge also
-                        //     remove data and change updateStrategy to replace for right now
                         (
                             this.queue[updateItem.index]
                                 .body as ModelPublishUpdateEvent
@@ -263,53 +339,57 @@ export class ModelEventSubscriber {
                         (
                             this.queue[updateItem.index]
                                 .body as ModelPublishUpdateEvent
-                        ).updateStrategy = "replace";
+                        ).updateStrategy = UpdateStrategy.REPLACE;
                     }
                 } else if (
-                    item.actions.some((action) => action.name === "delete")
+                    item.actions.some(
+                        (action) => action.name === ModelEventAction.DELETE
+                    ) &&
+                    !item.actions.some(
+                        (action) =>
+                            this.config.customTriggers[action.name]
+                                .allowOptimization
+                    )
                 ) {
-                    const currentDeleteIndex = item.actions
-                        .reverse()
-                        .findIndex((action) => action.name === "delete");
-                    if (
-                        item.actions.some((action) => action.name === "update")
-                    ) {
-                        const currentUpdateIndex = item.actions
-                            .reverse()
-                            .findIndex((action) => action.name === "update");
-                        if (currentUpdateIndex < currentDeleteIndex) {
-                            // since delete is last, we can just remove all besides delete
-                            item.actions.splice(currentDeleteIndex, 1);
-                            item.actions.forEach((action) => {
-                                this.queue.splice(action.index, 1);
-                            });
-                        } else {
-                            // since update is last, we can just remove all besides update
-                            const updateItem = item.actions.splice(
-                                currentUpdateIndex,
-                                1
-                            );
-                            item.actions.forEach((action) => {
-                                this.queue.splice(action.index, 1);
-                            });
-                            if (
-                                (
-                                    this.queue[updateItem[0].index]
-                                        .body as ModelPublishUpdateEvent
-                                ).updateStrategy === "merge"
-                            ) {
-                                //     could cause issues if previous update was merge also
-                                //     remove data and change updateStrategy to replace for right now
-                                (
-                                    this.queue[updateItem[0].index]
-                                        .body as ModelPublishUpdateEvent
-                                ).data = undefined;
-                                (
-                                    this.queue[updateItem[0].index]
-                                        .body as ModelPublishUpdateEvent
-                                ).updateStrategy = "replace";
-                            }
+                    const reverseActions = item.actions.reverse();
+                    const currentDeleteIndex = reverseActions.findIndex(
+                        (action) => action.name === ModelEventAction.DELETE
+                    );
+                    const currentUpdateIndex = reverseActions.findIndex(
+                        (action) => action.name !== ModelEventAction.DELETE
+                    );
+                    if (currentUpdateIndex < currentDeleteIndex) {
+                        // since delete is last, we can just remove all besides delete
+                        reverseActions.splice(currentDeleteIndex, 1);
+                        reverseActions.forEach((action) => {
+                            this.queue.splice(action.index, 1);
+                        });
+                    } else {
+                        // since update is last, we can just remove all besides update
+                        const updateItem = reverseActions.splice(
+                            currentUpdateIndex,
+                            1
+                        );
+                        if (
+                            (
+                                this.queue[updateItem[0].index]
+                                    .body as ModelPublishUpdateEvent
+                            ).updateStrategy === UpdateStrategy.MERGE
+                        ) {
+                            //     could cause issues if previous update was merge also
+                            //     remove data and change updateStrategy to replace for right now
+                            (
+                                this.queue[updateItem[0].index]
+                                    .body as ModelPublishUpdateEvent
+                            ).data = undefined;
+                            (
+                                this.queue[updateItem[0].index]
+                                    .body as ModelPublishUpdateEvent
+                            ).updateStrategy = UpdateStrategy.REPLACE;
                         }
+                        reverseActions.forEach((action) => {
+                            this.queue.splice(action.index, 1);
+                        });
                     }
                 }
             });
@@ -372,21 +452,25 @@ export class ModelEventSubscriber {
                 ...(
                     await Promise.all(
                         Object.entries(this.config.metaFields)
-                            .filter(([, item]) =>
-                                item.triggers.some((trigger) =>
-                                    triggers.includes(trigger)
-                                )
+                            .filter(
+                                ([, item]) =>
+                                    item.modelTriggers.some((trigger) =>
+                                        triggers.includes(trigger)
+                                    ) ||
+                                    item.customTriggers.some((customTrigger) =>
+                                        triggers.includes(customTrigger)
+                                    )
                             )
                             .map(async ([key, item]) => [
                                 key,
-                                await item.onChange(),
+                                await item.onModelChange(),
                             ])
                     )
                 ).map(
                     ([key, value]): ModelSubscribeMetaEvent => ({
                         modelName: this.config.trackModelName,
                         idParamName: this.config.idParamName,
-                        action: "meta",
+                        action: ModelEventAction.META,
                         data: {
                             id: key as string,
                             data: value,
@@ -422,16 +506,24 @@ export class ModelEventSubscriber {
         const action = getActionFromTrackIdentifier(event.header);
         const id: ModelId = (event.body as any)[this.config.idParamName];
         switch (action) {
-            case "update":
+            case ModelEventAction.UPDATE:
                 return this.onUpdate(
                     id,
                     event.body as ModelPublishUpdateEvent,
                     newIdList
                 );
-            case "delete":
+            case ModelEventAction.DELETE:
                 return { shouldUpdateIndexes: true };
             default:
-                throw new Error(`Unknown action "${action}"`);
+                return this.config.customTriggers[event.header].on(
+                    {
+                        getAll: this.config.getAll,
+                        getAllIds: this.config.getAllIds,
+                        onUpdate: this.onUpdate,
+                        modelState: this.modelState,
+                    },
+                    event.body as ModelPublishCustomEvent
+                );
         }
     }
 
@@ -439,17 +531,7 @@ export class ModelEventSubscriber {
         header: string,
         body: ModelPublishEventLike
     ): Promise<void> {
-        const action = getActionFromTrackIdentifier(header);
-
-        if (
-            action !== ModelEventAction.CREATE &&
-            action !== ModelEventAction.UPDATE &&
-            action !== ModelEventAction.DELETE
-        ) {
-            throw new Error(`Unknown action "${action}"`);
-        } else {
-            this.pushToQueue({ header, body });
-        }
+        this.pushToQueue({ header, body });
     }
 
     private async findIndexDiff(existedNewIdList?: ModelId[]): Promise<void> {
@@ -465,7 +547,7 @@ export class ModelEventSubscriber {
                         const deleteEvent: ModelSubscribeDeleteEvent = {
                             modelName: this.config.trackModelName,
                             idParamName: this.config.idParamName,
-                            action: "delete",
+                            action: ModelEventAction.DELETE,
                             data: { id },
                         };
                         return deleteEvent;
@@ -480,12 +562,12 @@ export class ModelEventSubscriber {
                             const createEvent: ModelSubscribeUpdateEvent = {
                                 modelName: this.config.trackModelName,
                                 idParamName: this.config.idParamName,
-                                action: "update",
+                                action: ModelEventAction.UPDATE,
                                 data: {
                                     id,
                                     data,
                                     index,
-                                    updateStrategy: "replace",
+                                    updateStrategy: UpdateStrategy.REPLACE,
                                 },
                             };
                             return createEvent;
@@ -510,13 +592,13 @@ export class ModelEventSubscriber {
         const dataFromBody = !!(body.data as ModelPrototype);
 
         if (indexInNew !== -1) {
-            if (updateStrategy === "replace") {
+            if (updateStrategy === UpdateStrategy.REPLACE) {
                 this.modelState.set(
                     id,
                     dataFromBody ? await this.config.sanitizeModel(data) : data
                 );
             } else if (
-                updateStrategy === "merge" &&
+                updateStrategy === UpdateStrategy.MERGE &&
                 body.data &&
                 modelHasLocal
             ) {
@@ -530,12 +612,12 @@ export class ModelEventSubscriber {
             this.pushToSendQueue({
                 modelName: this.config.trackModelName,
                 idParamName: this.config.idParamName,
-                action: "update",
+                action: ModelEventAction.UPDATE,
                 data: {
                     id,
                     data: this.modelState.get(id),
                     index: indexInNew,
-                    updateStrategy: "replace",
+                    updateStrategy: UpdateStrategy.REPLACE,
                 },
             });
             return { shouldUpdateIndexes: true, newIdList };
@@ -555,7 +637,7 @@ export class ModelEventSubscriber {
                 const deleteEvent: ModelSubscribeDeleteEvent = {
                     modelName: this.config.trackModelName,
                     idParamName: this.config.idParamName,
-                    action: "delete",
+                    action: ModelEventAction.DELETE,
                     data: { id },
                 };
                 return deleteEvent;

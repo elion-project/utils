@@ -1,12 +1,17 @@
 import { JSONLike } from "../types";
 
 export enum ModelEventAction {
-    CREATE = "create",
     UPDATE = "update",
     DELETE = "delete",
+    META = "meta",
 }
 
-export type UpdateStrategy = "replace" | "merge";
+export type UpdateStrategyType = UpdateStrategy;
+
+export enum UpdateStrategy {
+    REPLACE = "replace",
+    MERGE = "merge",
+}
 
 export const generateTrackIdentifier = (
     modelName: string,
@@ -28,7 +33,7 @@ export type ModelPrototype = {
 export type ModelSubscribeEvent = {
     modelName: string;
     idParamName: string;
-    action: "update" | "delete" | "meta";
+    action: "update" | "delete" | "meta" | ModelEventAction | string;
     data: {
         id: ModelId;
         data?: JSONLike;
@@ -37,24 +42,24 @@ export type ModelSubscribeEvent = {
 };
 
 export type ModelSubscribeUpdateEvent = ModelSubscribeEvent & {
-    action: "update";
+    action: ModelEventAction.UPDATE;
     data: {
         id: ModelId;
         data: JSONLike;
-        updateStrategy: UpdateStrategy;
+        updateStrategy: UpdateStrategyType;
         index: number;
     };
 };
 
 export type ModelSubscribeDeleteEvent = ModelSubscribeEvent & {
-    action: "delete";
+    action: ModelEventAction.DELETE;
     data: {
         id: ModelId;
     };
 };
 
 export type ModelSubscribeMetaEvent = ModelSubscribeEvent & {
-    action: "meta";
+    action: ModelEventAction.META;
     data: {
         id: string;
         data: JSONLike;
@@ -72,14 +77,19 @@ export type ModelPublishEvent = {
 
 export type ModelPublishUpdateEvent = ModelPublishEvent & {
     data?: JSONLike;
-    updateStrategy?: UpdateStrategy;
+    updateStrategy?: UpdateStrategyType;
 };
 
 export type ModelPublishDeleteEvent = ModelPublishEvent;
 
+export type ModelPublishCustomEvent = ModelPublishEvent & {
+    data?: JSONLike;
+};
+
 export type ModelPublishEventLike =
     | ModelPublishUpdateEvent
-    | ModelPublishDeleteEvent;
+    | ModelPublishDeleteEvent
+    | ModelPublishCustomEvent;
 
 export type ModelPublishEventLikeWithHeader = {
     header: string;
@@ -104,11 +114,18 @@ export enum ModelSubscribeEventKeepAliveCheckPendingPeriod {
 
 export type ModelSubscribeEventMetaField = {
     [key: string]: {
-        triggers: (ModelEventAction | string)[];
-        onChange: () => Promise<JSONLike>;
+        modelTriggers: (ModelEventAction | string)[];
+        customTriggers?: string[];
+        onModelChange: () => Promise<JSONLike>;
+        onCustomTrigger?: (
+            eventName: string,
+            eventData: JSONLike
+        ) => Promise<JSONLike>;
     };
 };
 
 export type ModelEventMeta = {
     [key: string]: JSONLike;
 };
+
+export type IdList = ModelId[];

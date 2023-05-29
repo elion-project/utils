@@ -1,4 +1,4 @@
-import { generateTrackIdentifier, ModelId, UpdateStrategy } from "./types";
+import { generateTrackIdentifier, ModelId, UpdateStrategyType } from "./types";
 import { JSONLike } from "../types";
 
 export type ModelEventPublisherConfig = {
@@ -18,7 +18,7 @@ export class ModelEventPublisher {
     private generateHeader = (action: string): string =>
         generateTrackIdentifier(this.modelName, action);
 
-    create(id: ModelId, data?: JSONLike): void {
+    public create(id: ModelId, data?: JSONLike): void {
         this.config.send(this.generateHeader("update"), {
             id,
             data,
@@ -26,10 +26,10 @@ export class ModelEventPublisher {
         });
     }
 
-    update(
+    public update(
         id: ModelId,
         data?: JSONLike,
-        updateStrategy?: UpdateStrategy
+        updateStrategy?: UpdateStrategyType
     ): void {
         this.config.send(this.generateHeader("update"), {
             id,
@@ -40,5 +40,9 @@ export class ModelEventPublisher {
 
     delete(id: ModelId): void {
         this.config.send(this.generateHeader("delete"), { id });
+    }
+
+    public custom(eventName: string, data?: JSONLike) {
+        this.config.send(this.generateHeader(eventName), data ?? {});
     }
 }
