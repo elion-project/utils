@@ -351,7 +351,7 @@ export class ModelEventSubscriber {
                                 .allowOptimization
                     )
                 ) {
-                    const reverseActions = item.actions.reverse();
+                    const reverseActions = [...item.actions].reverse();
                     const currentDeleteIndex = reverseActions.findIndex(
                         (action) => action.name === ModelEventAction.DELETE
                     );
