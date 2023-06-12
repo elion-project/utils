@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.2](https://github.com/elion-project/utils/compare/v0.1.1...v0.1.2) (2023-06-12)
+
+
+### Features
+
+* Add `fcr` feature support ([4300f14](https://github.com/elion-project/utils/commit/4300f142a2c8450806ce2b5ba05611d4e39aaa53))
+
 ### [0.1.1](https://github.com/elion-project/utils/compare/v0.1.0...v0.1.1) (2023-05-29)
 
 
