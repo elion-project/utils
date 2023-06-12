@@ -101,6 +101,11 @@ export enum ModelSubscribeEventBatchSize {
     "auto" = "auto",
 }
 
+export enum ModelSubscriberEventFirstContentSendSize {
+    "default" = 1,
+    "auto" = "auto",
+}
+
 export enum ModelSubscribeEventQueWaitTime {
     "default" = 100,
 }

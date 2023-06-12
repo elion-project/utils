@@ -20,6 +20,7 @@ import {
     ModelSubscribeEventMetaField,
     ModelSubscribeEventQueWaitTime,
     ModelSubscribeMetaEvent,
+    ModelSubscriberEventFirstContentSendSize,
     ModelSubscribeUpdateEvent,
     UpdateStrategy,
 } from "./types";
@@ -49,12 +50,17 @@ export type CustomTriggers = {
     [key: string]: CustomTrigger;
 };
 
+export enum ModelRequestStrategy {
+    "parallel",
+    "sequence",
+}
+
 export type SubscribeConfig = {
     trackModelName: string;
     idParamName: string;
     getAll?: () => Promise<ModelPrototype[]>;
     modelRequest?: {
-        strategy?: "parallel" | "sequence";
+        strategy?: ModelRequestStrategy;
     };
     getAllIds: () => Promise<IdList>;
     getById: (id: ModelId) => Promise<ModelPrototype>;
@@ -67,6 +73,13 @@ export type SubscribeConfig = {
     onModelEvent: (event: ModelSubscribeEvent[]) => void;
     // @description if batchSize is "auto" then batchSize will be calculated by count of available queue items. If batchSize is number, then que will wait for required count of items and then send them
     batchSize?: number | ModelSubscribeEventBatchSize;
+
+    firstContentSend?:
+        | {
+              // @description used for sending first available content to constructor useful for FCR. "auto" means 10% of indexes
+              size?: number | ModelSubscriberEventFirstContentSendSize;
+          }
+        | false;
     // @description period of time (in ms) between que checks. 100ms by default
     queWaitTime?: number | ModelSubscribeEventQueWaitTime;
     metaFields?: ModelSubscribeEventMetaField;
@@ -123,28 +136,29 @@ export class ModelEventSubscriber {
     }
 
     constructor(config: SubscribeConfig) {
-        const modelRequestStrategy =
-            config.modelRequest?.strategy ?? "parallel";
-
-        const getAllDefault = async () => {
-            const ids = await this.config.getAllIds();
-            if (modelRequestStrategy === "parallel") {
-                return Promise.all(ids.map((id) => this.config.getById(id)));
-            }
-
-            const result: ModelPrototype[] = [];
-            for (let i = 0; i < ids.length; i++) {
-                result.push(await this.config.getById(ids[i]));
-            }
-            return result;
-        };
         this.config = {
             ...config,
-            getAll: config.getAll ?? getAllDefault,
+            getAll:
+                config.getAll ??
+                (() =>
+                    this.getBatchDefault.bind(this)(
+                        [],
+                        this.config.modelRequest.strategy
+                    )),
             modelRequest: {
-                strategy: modelRequestStrategy,
+                strategy:
+                    config.modelRequest?.strategy ??
+                    ModelRequestStrategy.parallel,
             },
             batchSize: config.batchSize || ModelSubscribeEventBatchSize.auto,
+            firstContentSend:
+                config.firstContentSend === false
+                    ? false
+                    : {
+                          size:
+                              config.firstContentSend?.size ||
+                              ModelSubscriberEventFirstContentSendSize.auto,
+                      },
             queWaitTime:
                 config.queWaitTime || ModelSubscribeEventQueWaitTime.default,
             metaFields: config.metaFields || {},
@@ -162,6 +176,27 @@ export class ModelEventSubscriber {
         this.init();
     }
 
+    public async getBatchDefault(
+        idList?: IdList,
+        strategy?: ModelRequestStrategy
+    ) {
+        let ids = idList;
+        if (!idList || idList.length === 0) {
+            ids = await this.config.getAllIds();
+        }
+
+        const usedStrategy = strategy || this.config.modelRequest.strategy;
+        if (usedStrategy === ModelRequestStrategy.parallel) {
+            return Promise.all(ids.map((id) => this.config.getById(id)));
+        }
+
+        const result: ModelPrototype[] = [];
+        for (let i = 0; i < ids.length; i++) {
+            result.push(await this.config.getById(ids[i]));
+        }
+        return result;
+    }
+
     private generateTrackIdentifier = (action: string): string =>
         generateTrackIdentifier(this.config.trackModelName, action);
 
@@ -171,26 +206,6 @@ export class ModelEventSubscriber {
             this.config.keepAlive.period
         );
 
-        const getAllResponse = await this.config.getAll();
-
-        getAllResponse.forEach((item) => {
-            const id = (item as any)[this.config.idParamName];
-            this.modelState.set(id, item);
-        });
-
-        const metaFields = (
-            await Promise.all(
-                Object.entries(this.config.metaFields).map(
-                    async ([key, item]) => [
-                        key as string,
-                        await item.onModelChange(),
-                    ]
-                )
-            )
-        ).reduce((acc, [key, value]) => {
-            acc[key as string] = value;
-            return acc;
-        }, {} as ModelEventMeta);
         this.trackIdentifiers = [
             this.generateTrackIdentifier(ModelEventAction.UPDATE),
             this.generateTrackIdentifier(ModelEventAction.DELETE),
@@ -203,36 +218,87 @@ export class ModelEventSubscriber {
         );
 
         this.pushToSendQueue(
-            ...[
-                ...getAllResponse.map((item, index) => {
-                    const id: ModelId = (item as any)[this.config.idParamName];
-                    const createEvent: ModelSubscribeUpdateEvent = {
-                        modelName: this.config.trackModelName,
-                        idParamName: this.config.idParamName,
-                        action: ModelEventAction.UPDATE,
-                        data: {
-                            id,
-                            data: item,
-                            index,
-                            updateStrategy: UpdateStrategy.REPLACE,
-                        },
-                    };
-                    return createEvent;
-                }),
-                ...Object.entries(metaFields).map(([key, value]) => {
-                    const event: ModelSubscribeMetaEvent = {
-                        modelName: this.config.trackModelName,
-                        idParamName: this.config.idParamName,
-                        action: ModelEventAction.META,
-                        data: {
-                            id: key,
-                            data: value,
-                        },
-                    };
-                    return event;
-                }),
-            ]
+            ...Object.entries(
+                (
+                    await Promise.all(
+                        Object.entries(this.config.metaFields).map(
+                            async ([key, item]) => [
+                                key as string,
+                                await item.onModelChange(),
+                            ]
+                        )
+                    )
+                ).reduce((acc, [key, value]) => {
+                    acc[key as string] = value;
+                    return acc;
+                }, {} as ModelEventMeta)
+            ).map(([key, value]) => {
+                const event: ModelSubscribeMetaEvent = {
+                    modelName: this.config.trackModelName,
+                    idParamName: this.config.idParamName,
+                    action: ModelEventAction.META,
+                    data: {
+                        id: key,
+                        data: value,
+                    },
+                };
+                return event;
+            })
         );
+
+        const prepareModelCreateEvent = (
+            item: ModelPrototype,
+            index: number
+        ) => {
+            const id: ModelId = (item as any)[this.config.idParamName];
+            const createEvent: ModelSubscribeUpdateEvent = {
+                modelName: this.config.trackModelName,
+                idParamName: this.config.idParamName,
+                action: ModelEventAction.UPDATE,
+                data: {
+                    id,
+                    data: item,
+                    index,
+                    updateStrategy: UpdateStrategy.REPLACE,
+                },
+            };
+            return createEvent;
+        };
+
+        if (this.config.firstContentSend !== false) {
+            const allIds = await this.config.getAllIds();
+            const firstContentIds = allIds.slice(
+                0,
+                this.config.firstContentSend.size === "auto"
+                    ? Math.ceil(allIds.length / 10)
+                    : this.config.firstContentSend.size
+            );
+            const firstPart = await this.getBatchDefault(firstContentIds);
+            firstPart.forEach((item) => {
+                const id = (item as any)[this.config.idParamName];
+                this.modelState.set(id, item);
+            });
+            this.pushToSendQueue(...firstPart.map(prepareModelCreateEvent));
+
+            const lastPart = await this.getBatchDefault(
+                allIds.slice(firstContentIds.length)
+            );
+            lastPart.forEach((item) => {
+                const id = (item as any)[this.config.idParamName];
+                this.modelState.set(id, item);
+            });
+            this.pushToSendQueue(...lastPart.map(prepareModelCreateEvent));
+        } else {
+            const getAllResponse = await this.config.getAll();
+
+            getAllResponse.forEach((item) => {
+                const id = (item as any)[this.config.idParamName];
+                this.modelState.set(id, item);
+            });
+            this.pushToSendQueue(
+                ...getAllResponse.map(prepareModelCreateEvent)
+            );
+        }
     }
 
     private getStateIdList(): IdList {
