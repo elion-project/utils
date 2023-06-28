@@ -385,8 +385,9 @@ export class ModelEventSubscriber {
                     Array.from(
                         new Set(item.actions.map((action) => action.name))
                     ).length === 1 &&
-                    this.config.customTriggers[item.actions[0].name]
-                        .allowOptimization
+                    (this.config.customTriggers[item.actions[0].name]
+                        ?.allowOptimization ||
+                        !this.config.customTriggers[item.actions[0].name])
                 ) {
                     item.actions.slice(0, -1).forEach((action) => {
                         this.queue.splice(action.index, 1);
@@ -414,7 +415,7 @@ export class ModelEventSubscriber {
                     !item.actions.some(
                         (action) =>
                             this.config.customTriggers[action.name]
-                                .allowOptimization
+                                ?.allowOptimization
                     )
                 ) {
                     const reverseActions = [...item.actions].reverse();
