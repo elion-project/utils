@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.3](https://github.com/elion-project/utils/compare/v0.1.2...v0.1.3) (2023-06-28)
+
+
+### Bug Fixes
+
+* Getting error when trying to check `allowOptimization` inside of default action ([9375534](https://github.com/elion-project/utils/commit/9375534f0a69ae7b2d2e0be8289fa74042f5fb72))
+
 ### [0.1.2](https://github.com/elion-project/utils/compare/v0.1.1...v0.1.2) (2023-06-12)
 
 
