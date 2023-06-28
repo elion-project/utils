@@ -73,7 +73,10 @@ export type SubscribeConfig = {
     onModelEvent: (event: ModelSubscribeEvent[]) => void;
     // @description if batchSize is "auto" then batchSize will be calculated by count of available queue items. If batchSize is number, then que will wait for required count of items and then send them
     batchSize?: number | ModelSubscribeEventBatchSize;
-
+    optimization?: {
+        publisherModelEventOptimization?: boolean;
+        subscriberPostModelEventOptimization?: boolean;
+    };
     firstContentSend?:
         | {
               // @description used for sending first available content to constructor useful for FCR. "auto" means 10% of indexes
@@ -171,6 +174,14 @@ export class ModelEventSubscriber {
                     config.keepAlive.pendingPeriod ||
                     ModelSubscribeEventKeepAliveCheckPendingPeriod.default,
                 onKeepAlive: config.keepAlive.onKeepAlive,
+            },
+            optimization: {
+                publisherModelEventOptimization:
+                    config.optimization?.publisherModelEventOptimization ??
+                    true,
+                subscriberPostModelEventOptimization:
+                    config.optimization?.subscriberPostModelEventOptimization ??
+                    true,
             },
         };
         this.init();
@@ -495,7 +506,8 @@ export class ModelEventSubscriber {
         if (this.queue.length) {
             let shouldUpdateIndexes = false;
             let newIdList: IdList = null;
-            await this.optimizeQueue();
+            if (this.config.optimization.publisherModelEventOptimization)
+                await this.optimizeQueue();
             const triggers = this.queue.map((event) =>
                 getActionFromTrackIdentifier(event.header)
             );
@@ -548,7 +560,8 @@ export class ModelEventSubscriber {
         }
 
         if (this.sendQueue.length) {
-            await this.optimizeSendQueue();
+            if (this.config.optimization.subscriberPostModelEventOptimization)
+                await this.optimizeSendQueue();
             if (this.config.batchSize === ModelSubscribeEventBatchSize.auto) {
                 this.config.onModelEvent(this.sendQueue);
                 this.sendQueue = [];
