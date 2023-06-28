@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.4](https://github.com/elion-project/utils/compare/v0.1.3...v0.1.4) (2023-06-28)
+
+
+### Features
+
+* Add optimization params ([0eade67](https://github.com/elion-project/utils/commit/0eade6708fd550f938b0d7ad0d55d0f62080e917))
+
 ### [0.1.3](https://github.com/elion-project/utils/compare/v0.1.2...v0.1.3) (2023-06-28)
 
 
