@@ -29,12 +29,12 @@ export class ModelEventPublisher {
     public update(
         id: ModelId,
         data?: JSONLike,
-        updateStrategy?: UpdateStrategyType
+        updateStrategy?: UpdateStrategyType,
     ): void {
         this.config.send(this.generateHeader("update"), {
             id,
             data,
-            updateStrategy: updateStrategy || "merge",
+            updateStrategy: !data ? "replace" : updateStrategy || "merge",
         });
     }
 

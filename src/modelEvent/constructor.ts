@@ -1,3 +1,4 @@
+import merge from "lodash.merge";
 import {
     ModelSubscribeDeleteEvent,
     ModelSubscribeEvent,
@@ -102,9 +103,9 @@ export class ModelEventConstructor {
             this.cleanModelFromIndexList(id);
             this.modelIndexMap.splice(index, 0, id);
         } else {
-            console.warn(
-                `method ${updateStrategy} is not implemented yet! Skipping...`
-            );
+            this.modelState.set(id, merge(this.modelState.get(id) || {}, data));
+            this.cleanModelFromIndexList(id);
+            this.modelIndexMap.splice(index, 0, id);
         }
     }
 
