@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.5](https://github.com/elion-project/utils/compare/v0.1.4...v0.1.5) (2023-07-31)
+
+
+### Bug Fixes
+
+* Resolve problems with `merge` and `replace` update functionality ([0e1c52a](https://github.com/elion-project/utils/commit/0e1c52ad66999fd3ec4036656a88f9bc246961d5))
+
 ### [0.1.4](https://github.com/elion-project/utils/compare/v0.1.3...v0.1.4) (2023-06-28)
 
 
