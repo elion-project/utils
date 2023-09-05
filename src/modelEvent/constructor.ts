@@ -43,13 +43,13 @@ export class ModelEventConstructor {
             switch (event.action) {
                 case "update":
                     this.onUpdate.bind(this)(
-                        event as ModelSubscribeUpdateEvent
+                        event as ModelSubscribeUpdateEvent,
                     );
                     updateModels = true;
                     break;
                 case "delete":
                     this.onDelete.bind(this)(
-                        event as ModelSubscribeDeleteEvent
+                        event as ModelSubscribeDeleteEvent,
                     );
                     updateModels = true;
                     break;
@@ -61,7 +61,7 @@ export class ModelEventConstructor {
                     throw new Error(
                         `Unknown action "${
                             (event as ModelSubscribeEvent).action
-                        }"`
+                        }"`,
                     );
             }
         });
@@ -78,7 +78,7 @@ export class ModelEventConstructor {
 
     private cleanModelFromIndexList(
         id: ModelId,
-        cleanMap: boolean = false
+        cleanMap: boolean = false,
     ): boolean {
         const oldIndexes: number[] = this.modelIndexMap
             .map((item, index) => [item, index])
@@ -133,7 +133,7 @@ export class ModelEventConstructor {
 
     private updateModelsState(): void {
         this.config.onModelUpdate(
-            this.modelIndexMap.map((id) => this.modelState.get(id))
+            this.modelIndexMap.map((id) => this.modelState.get(id)),
         );
     }
 }

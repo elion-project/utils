@@ -42,7 +42,7 @@ export type CustomTrigger = {
     allowOptimization: boolean;
     on: (
         params: CustomTriggerOnEmit,
-        data: JSONLike
+        data: JSONLike,
     ) => Promise<OnEmitResponse>;
 };
 
@@ -67,7 +67,7 @@ export type SubscribeConfig = {
     sanitizeModel: (body: ModelPrototype) => Promise<ModelPrototype>;
     track: (
         trackIdentifier: string,
-        onTrackEvent: ModelEventSubscriber["onTrackEvent"]
+        onTrackEvent: ModelEventSubscriber["onTrackEvent"],
     ) => void;
     removeTrack: (trackIdentifier: string) => Promise<void>;
     onModelEvent: (event: ModelSubscribeEvent[]) => void;
@@ -99,7 +99,7 @@ export type SimpleSubscribeConfig = {
     trackName: string;
     track: (
         trackIdentifier: string,
-        onTrackEvent: ModelEventSubscriber["onTrackEvent"]
+        onTrackEvent: ModelEventSubscriber["onTrackEvent"],
     ) => void;
     removeTrack: (trackIdentifier: string) => Promise<void>;
 };
@@ -126,7 +126,7 @@ export class ModelEventSubscriber {
 
     static simpleSubscribe(
         params: SimpleSubscribeConfig,
-        onEvent: (data: JSONLike) => void
+        onEvent: (data: JSONLike) => void,
     ): { unsubscribe: () => void } {
         params.track(params.trackName, async (header, body) => {
             if (header === params.trackName) {
@@ -146,7 +146,7 @@ export class ModelEventSubscriber {
                 (() =>
                     this.getBatchDefault.bind(this)(
                         [],
-                        this.config.modelRequest.strategy
+                        this.config.modelRequest.strategy,
                     )),
             modelRequest: {
                 strategy:
@@ -189,7 +189,7 @@ export class ModelEventSubscriber {
 
     public async getBatchDefault(
         idList?: IdList,
-        strategy?: ModelRequestStrategy
+        strategy?: ModelRequestStrategy,
     ) {
         let ids = idList;
         if (!idList || idList.length === 0) {
@@ -214,18 +214,18 @@ export class ModelEventSubscriber {
     public async init() {
         this.keepAliveTimeout = setTimeout(
             this.onKeepAliveCheck.bind(this),
-            this.config.keepAlive.period
+            this.config.keepAlive.period,
         );
 
         this.trackIdentifiers = [
             this.generateTrackIdentifier(ModelEventAction.UPDATE),
             this.generateTrackIdentifier(ModelEventAction.DELETE),
             ...Object.keys(this.config.customTriggers).map((key) =>
-                this.generateTrackIdentifier(key)
+                this.generateTrackIdentifier(key),
             ),
         ];
         this.trackIdentifiers.forEach((trackIdentifier) =>
-            this.config.track(trackIdentifier, this.onTrackEvent.bind(this))
+            this.config.track(trackIdentifier, this.onTrackEvent.bind(this)),
         );
 
         this.pushToSendQueue(
@@ -236,13 +236,13 @@ export class ModelEventSubscriber {
                             async ([key, item]) => [
                                 key as string,
                                 await item.onModelChange(),
-                            ]
-                        )
+                            ],
+                        ),
                     )
                 ).reduce((acc, [key, value]) => {
                     acc[key as string] = value;
                     return acc;
-                }, {} as ModelEventMeta)
+                }, {} as ModelEventMeta),
             ).map(([key, value]) => {
                 const event: ModelSubscribeMetaEvent = {
                     modelName: this.config.trackModelName,
@@ -254,12 +254,12 @@ export class ModelEventSubscriber {
                     },
                 };
                 return event;
-            })
+            }),
         );
 
         const prepareModelCreateEvent = (
             item: ModelPrototype,
-            index: number
+            index: number,
         ) => {
             const id: ModelId = (item as any)[this.config.idParamName];
             const createEvent: ModelSubscribeUpdateEvent = {
@@ -282,7 +282,7 @@ export class ModelEventSubscriber {
                 0,
                 this.config.firstContentSend.size === "auto"
                     ? Math.ceil(allIds.length / 10)
-                    : this.config.firstContentSend.size
+                    : this.config.firstContentSend.size,
             );
             const firstPart = await this.getBatchDefault(firstContentIds);
             firstPart.forEach((item) => {
@@ -292,7 +292,7 @@ export class ModelEventSubscriber {
             this.pushToSendQueue(...firstPart.map(prepareModelCreateEvent));
 
             const lastPart = await this.getBatchDefault(
-                allIds.slice(firstContentIds.length)
+                allIds.slice(firstContentIds.length),
             );
             lastPart.forEach((item) => {
                 const id = (item as any)[this.config.idParamName];
@@ -307,7 +307,7 @@ export class ModelEventSubscriber {
                 this.modelState.set(id, item);
             });
             this.pushToSendQueue(
-                ...getAllResponse.map(prepareModelCreateEvent)
+                ...getAllResponse.map(prepareModelCreateEvent),
             );
         }
     }
@@ -352,7 +352,7 @@ export class ModelEventSubscriber {
         } else {
             this.keepAliveTimeout = setTimeout(
                 this.onKeepAliveCheck.bind(this),
-                this.config.keepAlive.period
+                this.config.keepAlive.period,
             );
         }
     }
@@ -369,7 +369,7 @@ export class ModelEventSubscriber {
                             actions: [
                                 {
                                     name: getActionFromTrackIdentifier(
-                                        item.header
+                                        item.header,
                                     ),
                                     index,
                                 },
@@ -394,7 +394,7 @@ export class ModelEventSubscriber {
             .forEach((item) => {
                 if (
                     Array.from(
-                        new Set(item.actions.map((action) => action.name))
+                        new Set(item.actions.map((action) => action.name)),
                     ).length === 1 &&
                     (this.config.customTriggers[item.actions[0].name]
                         ?.allowOptimization ||
@@ -421,20 +421,20 @@ export class ModelEventSubscriber {
                     }
                 } else if (
                     item.actions.some(
-                        (action) => action.name === ModelEventAction.DELETE
+                        (action) => action.name === ModelEventAction.DELETE,
                     ) &&
                     !item.actions.some(
                         (action) =>
                             this.config.customTriggers[action.name]
-                                ?.allowOptimization
+                                ?.allowOptimization,
                     )
                 ) {
                     const reverseActions = [...item.actions].reverse();
                     const currentDeleteIndex = reverseActions.findIndex(
-                        (action) => action.name === ModelEventAction.DELETE
+                        (action) => action.name === ModelEventAction.DELETE,
                     );
                     const currentUpdateIndex = reverseActions.findIndex(
-                        (action) => action.name !== ModelEventAction.DELETE
+                        (action) => action.name !== ModelEventAction.DELETE,
                     );
                     if (currentUpdateIndex < currentDeleteIndex) {
                         // since delete is last, we can just remove all besides delete
@@ -446,7 +446,7 @@ export class ModelEventSubscriber {
                         // since update is last, we can just remove all besides update
                         const updateItem = reverseActions.splice(
                             currentUpdateIndex,
-                            1
+                            1,
                         );
                         if (
                             (
@@ -486,7 +486,7 @@ export class ModelEventSubscriber {
                     event: ModelSubscribeEventLike;
                     index: number;
                 }[];
-            }
+            },
         )
             .filter(([, items]) => items.length > 1)
             .forEach(([, items]) => {
@@ -509,12 +509,12 @@ export class ModelEventSubscriber {
             if (this.config.optimization.publisherModelEventOptimization)
                 await this.optimizeQueue();
             const triggers = this.queue.map((event) =>
-                getActionFromTrackIdentifier(event.header)
+                getActionFromTrackIdentifier(event.header),
             );
             for (let i = 0; i < this.queue.length; i++) {
                 const eventResponse = await this.performQue(
                     this.queue[i],
-                    newIdList
+                    newIdList,
                 );
                 if (eventResponse.shouldUpdateIndexes) {
                     shouldUpdateIndexes = true;
@@ -534,16 +534,16 @@ export class ModelEventSubscriber {
                             .filter(
                                 ([, item]) =>
                                     item.modelTriggers.some((trigger) =>
-                                        triggers.includes(trigger)
+                                        triggers.includes(trigger),
                                     ) ||
                                     item.customTriggers.some((customTrigger) =>
-                                        triggers.includes(customTrigger)
-                                    )
+                                        triggers.includes(customTrigger),
+                                    ),
                             )
                             .map(async ([key, item]) => [
                                 key,
                                 await item.onModelChange(),
-                            ])
+                            ]),
                     )
                 ).map(
                     ([key, value]): ModelSubscribeMetaEvent => ({
@@ -554,8 +554,8 @@ export class ModelEventSubscriber {
                             id: key as string,
                             data: value,
                         },
-                    })
-                )
+                    }),
+                ),
             );
         }
 
@@ -574,14 +574,14 @@ export class ModelEventSubscriber {
         if (this.queue.length || this.sendQueue.length) {
             this.queueTimeout = setTimeout(
                 this.onQueueStep.bind(this),
-                this.config.queWaitTime
+                this.config.queWaitTime,
             );
         }
     }
 
     private async performQue(
         event: ModelPublishEventLikeWithHeader,
-        newIdList?: IdList
+        newIdList?: IdList,
     ): Promise<ModelSubscribeEventPerformerResponse> {
         const action = getActionFromTrackIdentifier(event.header);
         const id: ModelId = (event.body as any)[this.config.idParamName];
@@ -590,7 +590,7 @@ export class ModelEventSubscriber {
                 return this.onUpdate(
                     id,
                     event.body as ModelPublishUpdateEvent,
-                    newIdList
+                    newIdList,
                 );
             case ModelEventAction.DELETE:
                 return { shouldUpdateIndexes: true };
@@ -602,14 +602,14 @@ export class ModelEventSubscriber {
                         onUpdate: this.onUpdate,
                         modelState: this.modelState,
                     },
-                    event.body as ModelPublishCustomEvent
+                    event.body as ModelPublishCustomEvent,
                 );
         }
     }
 
     private async onTrackEvent(
         header: string,
-        body: ModelPublishEventLike
+        body: ModelPublishEventLike,
     ): Promise<void> {
         this.pushToQueue({ header, body });
     }
@@ -618,49 +618,50 @@ export class ModelEventSubscriber {
         const currentIdList = this.getStateIdList();
         const newIdList = existedNewIdList || (await this.config.getAllIds());
 
-        this.pushToSendQueue(
-            ...[
-                ...currentIdList
-                    .filter((id) => !newIdList.includes(id))
-                    .map((id) => {
-                        this.modelState.delete(id);
-                        const deleteEvent: ModelSubscribeDeleteEvent = {
+        const que = [
+            ...currentIdList
+                .filter((id) => !newIdList.includes(id))
+                .map((id) => {
+                    this.modelState.delete(id);
+                    const deleteEvent: ModelSubscribeDeleteEvent = {
+                        modelName: this.config.trackModelName,
+                        idParamName: this.config.idParamName,
+                        action: ModelEventAction.DELETE,
+                        data: { id },
+                    };
+                    return deleteEvent;
+                }),
+            ...(await Promise.all(
+                newIdList
+                    .filter((id) => !currentIdList.includes(id))
+                    .map(async (id) => {
+                        const data = await this.config.getById(id);
+                        this.modelState.set(id, data);
+                        const index = newIdList.indexOf(id);
+                        const createEvent: ModelSubscribeUpdateEvent = {
                             modelName: this.config.trackModelName,
                             idParamName: this.config.idParamName,
-                            action: ModelEventAction.DELETE,
-                            data: { id },
+                            action: ModelEventAction.UPDATE,
+                            data: {
+                                id,
+                                data,
+                                index,
+                                updateStrategy: UpdateStrategy.REPLACE,
+                            },
                         };
-                        return deleteEvent;
+                        return createEvent;
                     }),
-                ...(await Promise.all(
-                    newIdList
-                        .filter((id) => !currentIdList.includes(id))
-                        .map(async (id) => {
-                            const data = await this.config.getById(id);
-                            this.modelState.set(id, data);
-                            const index = newIdList.indexOf(id);
-                            const createEvent: ModelSubscribeUpdateEvent = {
-                                modelName: this.config.trackModelName,
-                                idParamName: this.config.idParamName,
-                                action: ModelEventAction.UPDATE,
-                                data: {
-                                    id,
-                                    data,
-                                    index,
-                                    updateStrategy: UpdateStrategy.REPLACE,
-                                },
-                            };
-                            return createEvent;
-                        })
-                )),
-            ]
-        );
+            )),
+        ];
+        if (que.length) {
+            this.pushToSendQueue(...que);
+        }
     }
 
     private async onUpdate(
         id: ModelId,
         body: ModelPublishUpdateEvent,
-        existedNewIdList?: IdList
+        existedNewIdList?: IdList,
     ): Promise<ModelSubscribeEventPerformerResponse> {
         const newIdList = existedNewIdList || (await this.config.getAllIds());
         const modelHasLocal = this.modelState.has(id);
@@ -675,7 +676,7 @@ export class ModelEventSubscriber {
             if (updateStrategy === UpdateStrategy.REPLACE) {
                 this.modelState.set(
                     id,
-                    dataFromBody ? await this.config.sanitizeModel(data) : data
+                    dataFromBody ? await this.config.sanitizeModel(data) : data,
                 );
             } else if (
                 updateStrategy === UpdateStrategy.MERGE &&
@@ -685,8 +686,8 @@ export class ModelEventSubscriber {
                 this.modelState.set(
                     id,
                     await this.config.sanitizeModel(
-                        merge(this.modelState.get(id), data)
-                    )
+                        merge(this.modelState.get(id), data),
+                    ),
                 );
             }
             this.pushToSendQueue({
@@ -721,7 +722,7 @@ export class ModelEventSubscriber {
                     data: { id },
                 };
                 return deleteEvent;
-            })
+            }),
         );
         await this.init();
     }
@@ -734,8 +735,8 @@ export class ModelEventSubscriber {
         if (this.keepAliveTimeout) clearTimeout(this.keepAliveTimeout);
         await Promise.all(
             this.trackIdentifiers.map((trackIdentifier) =>
-                this.config.removeTrack(trackIdentifier)
-            )
+                this.config.removeTrack(trackIdentifier),
+            ),
         );
     }
 }
