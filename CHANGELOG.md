@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.1.6](https://github.com/elion-project/utils/compare/v0.1.5...v0.1.6) (2023-09-05)
+
+
+### Bug Fixes
+
+* upgrade subscriber.ts ([f3bac81](https://github.com/elion-project/utils/commit/f3bac81a146fe5dba4f941be2183fa8ce26c8a9c))
+
 ### [0.1.5](https://github.com/elion-project/utils/compare/v0.1.4...v0.1.5) (2023-07-31)
 
 
