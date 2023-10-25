@@ -3,16 +3,16 @@
 export type AbortPromiseConstructorExecutor = (
     resolve: (value: any | PromiseLike<any>) => void,
     reject: (reason?: any) => void,
-    abortSignal: AbortSignal
+    abortSignal: AbortSignal,
 ) => void;
 export type AbortPromiseConstructor = [
     executor: AbortPromiseConstructorExecutor,
-    abortController?: AbortController
+    abortController?: AbortController,
 ];
 export class AbortPromise {
     constructor(
         executor: AbortPromiseConstructor[0],
-        abortController?: AbortPromiseConstructor[1]
+        abortController?: AbortPromiseConstructor[1],
     ) {
         const abort = abortController || new AbortController();
         // @ts-ignore
@@ -22,14 +22,14 @@ export class AbortPromise {
                 func: (
                     resolve: (value: any | PromiseLike<any>) => void,
                     reject: (reason?: any) => void,
-                    abortSignal: AbortSignal
-                ) => void
+                    abortSignal: AbortSignal,
+                ) => void,
             ) {
                 super(
                     (
                         resolve: (value: any | PromiseLike<any>) => void,
-                        reject: (reason?: any) => void
-                    ) => func(resolve, reject, abort.signal)
+                        reject: (reason?: any) => void,
+                    ) => func(resolve, reject, abort.signal),
                 );
             }
 
@@ -51,6 +51,6 @@ export class AbortPromise {
 export interface IAbortPromise {
     new (
         executor: AbortPromiseConstructor[0],
-        abortController?: AbortPromiseConstructor[1]
+        abortController?: AbortPromiseConstructor[1],
     ): AbortPromise;
 }

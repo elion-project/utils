@@ -21,6 +21,7 @@ export default class ChainActions {
 
     public __chainActions: boolean = true;
 
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     constructor(options?: {}) {
         this.actions = [];
     }
@@ -28,7 +29,7 @@ export default class ChainActions {
     step(
         executor: ExecutorFunction,
         rollback?: RollbackFunction,
-        options?: StepOptions
+        options?: StepOptions,
     ): ChainActions {
         this.actions.push({
             executor,
@@ -41,11 +42,13 @@ export default class ChainActions {
 
         return Object.assign(
             async (...params: any[]) => this.execute(...params),
-            this
+            this,
         );
     }
 
+    // eslint-disable-next-line class-methods-use-this, @typescript-eslint/no-unused-vars
     execute(...params: any[]) {}
 
+    // eslint-disable-next-line class-methods-use-this
     abort() {}
 }
