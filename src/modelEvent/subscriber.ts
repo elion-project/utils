@@ -503,8 +503,6 @@ export class ModelEventSubscriber {
     }
 
     private async onQueueStep(): Promise<void> {
-        console.log("onQueueStep", this.queue);
-
         if (this.queue.length) {
             let shouldUpdateIndexes = false;
             let newIdList: IdList = null;
