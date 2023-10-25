@@ -28,7 +28,7 @@ export default class ChainActions {
     step(
         executor: ExecutorFunction,
         rollback?: RollbackFunction,
-        options?: StepOptions
+        options?: StepOptions,
     ): ChainActions {
         this.actions.push({
             executor,
@@ -41,7 +41,7 @@ export default class ChainActions {
 
         return Object.assign(
             async (...params: any[]) => this.execute(...params),
-            this
+            this,
         );
     }
 

@@ -618,41 +618,48 @@ export class ModelEventSubscriber {
         const currentIdList = this.getStateIdList();
         const newIdList = existedNewIdList || (await this.config.getAllIds());
 
-        const que = [
-            ...currentIdList
-                .filter((id) => !newIdList.includes(id))
-                .map((id) => {
-                    this.modelState.delete(id);
-                    const deleteEvent: ModelSubscribeDeleteEvent = {
-                        modelName: this.config.trackModelName,
-                        idParamName: this.config.idParamName,
-                        action: ModelEventAction.DELETE,
-                        data: { id },
-                    };
-                    return deleteEvent;
-                }),
-            ...(await Promise.all(
-                newIdList
-                    .filter((id) => !currentIdList.includes(id))
-                    .map(async (id) => {
-                        const data = await this.config.getById(id);
-                        this.modelState.set(id, data);
-                        const index = newIdList.indexOf(id);
-                        const createEvent: ModelSubscribeUpdateEvent = {
-                            modelName: this.config.trackModelName,
-                            idParamName: this.config.idParamName,
-                            action: ModelEventAction.UPDATE,
-                            data: {
-                                id,
-                                data,
-                                index,
-                                updateStrategy: UpdateStrategy.REPLACE,
-                            },
-                        };
-                        return createEvent;
-                    }),
-            )),
-        ];
+        const toDeleteIds = currentIdList.filter(
+            (id) => !newIdList.includes(id),
+        );
+
+        const toCreateIds = newIdList.filter(
+            (id) =>
+                !currentIdList.includes(id) ||
+                currentIdList.indexOf(id) !== newIdList.indexOf(id),
+        );
+
+        const toDeleteEvents = toDeleteIds.map((id) => {
+            this.modelState.delete(id);
+            const deleteEvent: ModelSubscribeDeleteEvent = {
+                modelName: this.config.trackModelName,
+                idParamName: this.config.idParamName,
+                action: ModelEventAction.DELETE,
+                data: { id },
+            };
+            return deleteEvent;
+        });
+
+        const toCreateEvents = await Promise.all(
+            toCreateIds.map(async (id) => {
+                const data = await this.config.getById(id);
+                this.modelState.set(id, data);
+                const index = newIdList.indexOf(id);
+                const createEvent: ModelSubscribeUpdateEvent = {
+                    modelName: this.config.trackModelName,
+                    idParamName: this.config.idParamName,
+                    action: ModelEventAction.UPDATE,
+                    data: {
+                        id,
+                        data,
+                        index,
+                        updateStrategy: UpdateStrategy.REPLACE,
+                    },
+                };
+                return createEvent;
+            }),
+        );
+
+        const que = [...toDeleteEvents, ...toCreateEvents];
         if (que.length) {
             this.pushToSendQueue(...que);
         }
