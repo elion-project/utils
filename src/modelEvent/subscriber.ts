@@ -503,14 +503,14 @@ export class ModelEventSubscriber {
     }
 
     private async onQueueStep(): Promise<void> {
+        console.log("onQueueStep", this.queue);
+
         if (this.queue.length) {
             let shouldUpdateIndexes = false;
             let newIdList: IdList = null;
             if (this.config.optimization.publisherModelEventOptimization)
                 await this.optimizeQueue();
-            const triggers = this.queue.map((event) =>
-                getActionFromTrackIdentifier(event.header),
-            );
+
             for (let i = 0; i < this.queue.length; i++) {
                 const eventResponse = await this.performQue(
                     this.queue[i],
@@ -527,36 +527,12 @@ export class ModelEventSubscriber {
             if (shouldUpdateIndexes) {
                 await this.findIndexDiff();
             }
-            this.pushToSendQueue(
-                ...(
-                    await Promise.all(
-                        Object.entries(this.config.metaFields)
-                            .filter(
-                                ([, item]) =>
-                                    item.modelTriggers.some((trigger) =>
-                                        triggers.includes(trigger),
-                                    ) ||
-                                    item.customTriggers.some((customTrigger) =>
-                                        triggers.includes(customTrigger),
-                                    ),
-                            )
-                            .map(async ([key, item]) => [
-                                key,
-                                await item.onModelChange(),
-                            ]),
-                    )
-                ).map(
-                    ([key, value]): ModelSubscribeMetaEvent => ({
-                        modelName: this.config.trackModelName,
-                        idParamName: this.config.idParamName,
-                        action: ModelEventAction.META,
-                        data: {
-                            id: key as string,
-                            data: value,
-                        },
-                    }),
-                ),
+
+            const triggers = this.queue.map((event) =>
+                getActionFromTrackIdentifier(event.header),
             );
+
+            this.updateModelTriggers(triggers);
         }
 
         if (this.sendQueue.length) {
@@ -614,6 +590,45 @@ export class ModelEventSubscriber {
         this.pushToQueue({ header, body });
     }
 
+    private async updateModelTriggers(triggers?: string[]) {
+        let metadataFieldsEntries = Object.entries(this.config.metaFields);
+
+        if (triggers) {
+            metadataFieldsEntries = metadataFieldsEntries.filter(
+                ([, item]) =>
+                    (item.modelTriggers?.some((trigger) =>
+                        triggers.includes(trigger),
+                    ) ??
+                        false) ||
+                    (item.customTriggers?.some((customTrigger) =>
+                        triggers.includes(customTrigger),
+                    ) ??
+                        false),
+            );
+        }
+
+        const metadataEntries = await Promise.all(
+            metadataFieldsEntries.map(async ([key, item]) => [
+                key,
+                await item.onModelChange(),
+            ]),
+        );
+
+        const metadataEvents = metadataEntries.map(
+            ([key, value]): ModelSubscribeMetaEvent => ({
+                modelName: this.config.trackModelName,
+                idParamName: this.config.idParamName,
+                action: ModelEventAction.META,
+                data: {
+                    id: key as string,
+                    data: value,
+                },
+            }),
+        );
+
+        this.pushToSendQueue(...metadataEvents);
+    }
+
     private async findIndexDiff(existedNewIdList?: ModelId[]): Promise<void> {
         const currentIdList = this.getStateIdList();
         const newIdList = existedNewIdList || (await this.config.getAllIds());
@@ -660,6 +675,7 @@ export class ModelEventSubscriber {
         );
 
         const que = [...toDeleteEvents, ...toCreateEvents];
+
         if (que.length) {
             this.pushToSendQueue(...que);
         }
@@ -735,6 +751,7 @@ export class ModelEventSubscriber {
     }
 
     public async regenerateIndexes(): Promise<void> {
+        await this.updateModelTriggers();
         await this.findIndexDiff();
     }
 
