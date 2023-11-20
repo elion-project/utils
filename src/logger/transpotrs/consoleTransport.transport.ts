@@ -2,7 +2,7 @@ import { LoggerMessage } from "../types";
 
 export const generateLevelInput = (level: string, size = 5) =>
     `${Array.from({ length: size - level.length }, () => " ").join(
-        ""
+        "",
     )}${level}`;
 
 const compatibilityLevels = {
@@ -18,8 +18,8 @@ const compatibilityLevels = {
 export function consoleLogTransport(info: LoggerMessage): void | Promise<void> {
     compatibilityLevels[info.level](
         `(${new Date().toLocaleString()}) ${generateLevelInput(
-            info.level
+            info.level,
         )} [${info.meta.level.join(" > ")}]:`,
-        ...info.message
+        ...info.message,
     );
 }

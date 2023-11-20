@@ -35,7 +35,7 @@ export class Logger {
             ];
             this.level = this.options.parentLogger.level;
             this.callback = this.options.parentLogger.callback.bind(
-                this.options.parentLogger
+                this.options.parentLogger,
             );
         } else {
             this.level = this.options.level ?? "info";
