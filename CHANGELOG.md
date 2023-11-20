@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [0.2.0](https://github.com/elion-project/utils/compare/v0.1.6...v0.2.0) (2023-11-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* Drop `Node.js v16` support. Upgrade dependencies. remove `modelEvent`
+
+### Features
+
+* Drop `Node.js v16` support. Upgrade dependencies. remove `modelEvent` ([3df7b68](https://github.com/elion-project/utils/commit/3df7b68ce587427614723627c8e49b301372cd75))
+
 ### [0.1.6](https://github.com/elion-project/utils/compare/v0.1.5...v0.1.6) (2023-09-05)
 
 
