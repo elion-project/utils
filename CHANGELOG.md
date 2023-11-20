@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.2](https://github.com/elion-project/utils/compare/v0.2.1...v0.2.2) (2023-11-20)
+
+
+### Bug Fixes
+
+* Remove `ModelEvent` from README description ([3d72a31](https://github.com/elion-project/utils/commit/3d72a31cb4d5a0d421f251df12407e2d64446d17))
+
 ### [0.2.1](https://github.com/elion-project/utils/compare/v0.2.0...v0.2.1) (2023-11-20)
 
 
