@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.5](https://github.com/elion-project/utils/compare/v0.2.4...v0.2.5) (2023-11-24)
+
+
+### Bug Fixes
+
+* Update typescript config and fix module imports ([c6cd5d2](https://github.com/elion-project/utils/commit/c6cd5d241c8ff6cb307e9f531d8b8cd4c3849bc2))
+
 ### [0.2.4](https://github.com/elion-project/utils/compare/v0.2.3...v0.2.4) (2023-11-24)
 
 
