@@ -4,6 +4,7 @@
     "description": "Super scalable enterprise Node.js server library",
     "main": "./dist/esm/index.js",
     "types": "./dist/types/index.d.ts",
+    "type": "module",
     "exports": {
         "types": "./dist/types/index.d.ts",
         "require": "./dist/cjs/index.js",
