@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.3](https://github.com/elion-project/utils/compare/v0.2.2...v0.2.3) (2023-11-24)
+
+
+### Features
+
+* Add colored (pretty) console logging functionality ([4c9d357](https://github.com/elion-project/utils/commit/4c9d357383d3c4c475c67c14bf511f1fc930789e))
+
 ### [0.2.2](https://github.com/elion-project/utils/compare/v0.2.1...v0.2.2) (2023-11-20)
 
 
