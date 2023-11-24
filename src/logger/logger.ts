@@ -1,4 +1,4 @@
-import { LoggerLevels, LoggerLevelsArray, LoggerMessage } from "./types";
+import { LoggerLevels, LoggerLevelsArray, LoggerMessage } from "./types.js";
 
 export type LoggerOptions = {
     name?: string;

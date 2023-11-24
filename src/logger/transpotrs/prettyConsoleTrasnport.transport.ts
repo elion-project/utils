@@ -1,6 +1,6 @@
 import chalk, { ChalkInstance } from "chalk";
 import util from "util";
-import { LoggerMessage } from "../types";
+import { LoggerMessage } from "../types.js";
 
 export type LogLevel = {
     key: string;

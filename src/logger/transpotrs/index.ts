@@ -1,2 +1,2 @@
-export * as ConsoleTransport from "./consoleTransport.transport";
-export * as PrettyConsoleTransport from "./prettyConsoleTrasnport.transport";
+export * as ConsoleTransport from "./consoleTransport.transport.js";
+export * as PrettyConsoleTransport from "./prettyConsoleTrasnport.transport.js";

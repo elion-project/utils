@@ -1,1 +1,1 @@
-export * as Logger from "./logger";
+export * as Logger from "./logger/index.js";

@@ -1,6 +1,6 @@
 {
     "compilerOptions": {
-        "moduleResolution": "Node",
+        "moduleResolution": "node",
         "resolveJsonModule": true,
         "esModuleInterop": true,
         "composite": true,
@@ -9,8 +9,7 @@
         "sourceMap": true,
         "target": "ES6",
         "lib": [
-            "es6",
-            "es2021",
+            "es2023",
             "dom"
         ],
         "typeRoots": [

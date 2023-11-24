@@ -1,4 +1,4 @@
-import { LoggerMessage } from "../types";
+import { LoggerMessage } from "../types.js";
 
 export const generateLevelInput = (level: string, size = 5) =>
     `${Array.from({ length: size - level.length }, () => " ").join(
