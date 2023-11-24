@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.4](https://github.com/elion-project/utils/compare/v0.2.3...v0.2.4) (2023-11-24)
+
+
+### Bug Fixes
+
+* Add `"type": "module"` to package.json ([a3669f2](https://github.com/elion-project/utils/commit/a3669f2f9b7172bcb59f9996066468760d72cf2a))
+
 ### [0.2.3](https://github.com/elion-project/utils/compare/v0.2.2...v0.2.3) (2023-11-24)
 
 
