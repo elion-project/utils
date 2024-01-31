@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.7](https://github.com/elion-project/utils/compare/v0.2.6...v0.2.7) (2024-01-31)
+
+
+### Bug Fixes
+
+* Upgrade dependencies; Update LICENSE year; Add release commands ([0b70d17](https://github.com/elion-project/utils/commit/0b70d17570d5dcb56416837e5cc85940cdda7c30))
+
 ### [0.2.6](https://github.com/elion-project/utils/compare/v0.2.5...v0.2.6) (2024-01-31)
 
 ### [0.2.5](https://github.com/elion-project/utils/compare/v0.2.4...v0.2.5) (2023-11-24)
