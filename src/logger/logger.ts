@@ -45,9 +45,18 @@ export class Logger {
         }
     }
 
-    public child(options: Omit<LoggerChildOptions, "parentLogger">): Logger {
+    public child(options: Omit<LoggerChildOptions, "parentLogger">): Logger;
+    public child(name: string): Logger;
+
+    public child(arg: any): Logger {
+        if (typeof arg === "string") {
+            return this.child({
+                name: arg,
+                parentLogger: this,
+            } as Omit<LoggerChildOptions, "parentLogger">);
+        }
         return new Logger({
-            ...options,
+            ...(arg as Omit<LoggerChildOptions, "parentLogger">),
             parentLogger: this,
         });
     }
