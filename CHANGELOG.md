@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.8](https://github.com/elion-project/utils/compare/v0.2.7...v0.2.8) (2024-03-18)
+
+
+### Features
+
+* Update child method in logger class; Update dependencies. ([689ea54](https://github.com/elion-project/utils/commit/689ea54d43eb2cfb1c0645e51e0c8664e683fbae))
+
 ### [0.2.7](https://github.com/elion-project/utils/compare/v0.2.6...v0.2.7) (2024-01-31)
 
 
