@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.2.9](https://github.com/elion-project/utils/compare/v0.2.8...v0.2.9) (2024-03-28)
+
+
+### Features
+
+* Refactor LoggerChildOptions type and adjust Logger level ([dfaa986](https://github.com/elion-project/utils/commit/dfaa986cb85011f10924ca13b79b0e758db8c1bb))
+
+
+### Bug Fixes
+
+* Add documentation to logger methods ([7dc85aa](https://github.com/elion-project/utils/commit/7dc85aa7da3e1d9d85fa9447404a4563a6b55072))
+
 ### [0.2.8](https://github.com/elion-project/utils/compare/v0.2.7...v0.2.8) (2024-03-18)
 
 
