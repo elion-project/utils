@@ -1,4 +1,5 @@
 import { LoggerLevels, LoggerLevelsArray, LoggerMessage } from "./types.js";
+import { Optional } from "../types.js";
 
 export type LoggerOptions = {
     name?: string;
@@ -7,8 +8,9 @@ export type LoggerOptions = {
     parentLogger?: Logger;
 };
 
-export type LoggerChildOptions = Required<
-    Omit<LoggerOptions, "level" | "callback">
+export type LoggerChildOptions = Optional<
+    Required<Omit<LoggerOptions, "callback">>,
+    "level"
 >;
 export class Logger {
     private options: LoggerOptions;
@@ -33,7 +35,7 @@ export class Logger {
                 ...this.options.parentLogger.nameLevel,
                 this.name,
             ];
-            this.level = this.options.parentLogger.level;
+            this.level = options.level ?? this.options.parentLogger.level;
             this.callback = this.options.parentLogger.callback.bind(
                 this.options.parentLogger,
             );
