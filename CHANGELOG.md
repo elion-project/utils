@@ -1,6 +1,8 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
+
+## [0.2.10](https://github.com/elion-project/utils/compare/v0.2.9...v0.2.10) (2025-07-11)
 
 ### [0.2.9](https://github.com/elion-project/utils/compare/v0.2.8...v0.2.9) (2024-03-28)
 
